@@ -1,0 +1,219 @@
+$INCLUDE (REG167.INC) 
+
+ 
+
+ASSUME  DPP1 : NCONST         ; DPP1 addresses the NCONST group
+ASSUME  DPP2 : NDATA          ; DPP2 addresses the NDATA  group
+ASSUME  DPP3 : SYSTEM         ; DPP3 addresses the SYSTEM page
+
+P9		EQU 0FFD4H
+
+T7VAL	EQU	0FB0CH	;PWM 1 Gr 
+T8VAL	EQU	0FB0CH	;PWM 2 Gr
+T1VAL	EQU	0FB0CH	;PWM 3 Gr
+;T7VAL	EQU	0FB84H 
+
+
+
+DriverSection SECTION CODE 'ICODE'
+	;******************************************************
+	GROUP1_CLEAR PROC
+		BCLR CC8IC.7
+		BCLR CC9IC.7
+		BCLR CC10IC.7
+		BCLR CC11IC.7
+		
+		RET
+	GROUP1_CLEAR ENDP
+	;******************************************************
+	
+	GROUP2_CLEAR PROC
+		BCLR CC12IC.7
+		BCLR CC13IC.7
+	
+		RET
+	GROUP2_CLEAR ENDP
+	;******************************************************
+	
+	GROUP3_CLEAR PROC
+		BCLR CC14IC.7
+		BCLR CC15IC.7
+	
+		RET
+	GROUP3_CLEAR ENDP
+	;******************************************************	
+	
+	GROUP2INT_OFF PROC
+		BCLR CC12IC.6
+		BCLR CC13IC.6
+		RET	
+	GROUP2INT_OFF ENDP
+	;******************************************************
+	GROUP2INT_ON PROC
+		BSET CC12IC.6
+		BSET CC13IC.6	
+		RET	
+	GROUP2INT_ON ENDP
+	;******************************************************
+	GROUP3INT_OFF PROC	
+		BCLR CC14IC.6
+		BCLR CC15IC.6		
+		RET
+	GROUP3INT_OFF ENDP		
+	;******************************************************
+	GROUP3INT_ON PROC
+		BCLR CC14IC.6
+		BCLR CC15IC.6	
+		RET
+	GROUP3INT_ON ENDP	
+	
+	;******************************************************
+	;**********************GROUP 1*************************
+	;******************************************************
+	TIMER7IC PROC INTERRUPT = 0x3D
+		PUSH R10
+		PUSH R9
+		
+		MOV R10 #T7VAL
+		MOV T7 R10
+		
+		BCLR P7.4
+		NOP
+		NOP
+		NOP
+		NOP
+		NOP
+		BSET P7.5
+		
+		POP R9
+		POP R10
+		
+		RETI
+	TIMER7IC ENDP
+	
+	CC28IO PROC INTERRUPT = 0x3C
+		
+		;BSET P9.1;DEBUG для проверки времени выполнения
+		;CALL GROUP1INT_OFF;отключаем прерывания 1 группы
+		PUSH R10
+
+		
+		BCLR P7.5	;задержка перед включением верхнего ключа
+		NOP
+		NOP
+		NOP
+		NOP
+		NOP
+		BSET P7.4
+		
+		NOP
+		NOP
+		NOP
+		NOP
+		NOP
+
+
+		
+		
+		
+		CALL GROUP1_CLEAR;включаем прерывания 1 группы
+		;BCLR P9.1;DEBUG для проверки времени выполнения
+		
+		POP R10
+		
+		RETI
+	CC28IO ENDP
+
+	;******************************************************
+	;**********************GROUP 2*************************
+	;******************************************************
+	TIMER8IC PROC INTERRUPT = 0x3E
+		PUSH R10
+		MOV R10 #T8VAL
+		MOV T8 R10
+		
+		BCLR P7.6
+		NOP
+		NOP
+		NOP
+		NOP
+		NOP		
+		BSET P7.7
+			
+		POP R10		
+	
+		RETI
+	TIMER8IC ENDP
+	
+	
+	CAPCOM30IO PROC INTERRUPT = 0x45
+		BCLR P7.7
+		NOP
+		NOP
+		NOP
+		NOP
+		NOP
+		BSET P7.6
+		
+		NOP
+		NOP
+		NOP
+		NOP
+		NOP
+		
+		CALL GROUP2_CLEAR
+		
+		RETI
+	CAPCOM30IO ENDP	
+	
+	;******************************************************
+	;**********************GROUP 3*************************
+	;******************************************************
+	
+	TIMER1IC PROC INTERRUPT = 0x21
+		PUSH R10
+		MOV R10 #T1VAL
+		MOV 0FE52H R10
+		BCLR P9.0
+		MOV R10 0FE52H
+		
+		NOP
+		NOP
+		NOP
+		NOP
+		NOP	
+		
+		BSET P9.1
+		POP R10	
+
+		RETI
+	TIMER1IC ENDP
+	
+	CAPCOM4IC PROC INTERRUPT = 0x14
+		BCLR P9.1
+		NOP
+		NOP
+		NOP
+		NOP
+		NOP
+		
+		BSET P9.0
+		NOP
+		NOP
+		NOP
+		NOP
+		NOP
+		
+		CALL GROUP3_CLEAR
+		
+		RETI
+	CAPCOM4IC ENDP
+	
+	;********************************************************
+	;PUBLIC SECTION
+	;********************************************************
+
+	
+DriverSection ENDS 
+
+END

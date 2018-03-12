@@ -1,0 +1,141 @@
+C166 COMPILER V7.53.0.0, MAIN                                                              04/25/2017 12:22:24 PAGE 1   
+
+
+C166 COMPILER V7.53.0.0, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN main.OBJ
+COMPILER INVOKED BY: C:\Keil_167\C166\BIN\C166.EXE main.c BROWSE MOD167 DEBUG TABS(2) 
+
+ stmt lvl     source
+
+    1         #include "main.h"
+    2         #include "can.h"
+    3         #include "flash.h"
+    4         #include "settings.h"
+    5         #include "protocol.h"
+    6         #include "process.h"
+    7         #include "system.h"
+    8         #include "math.h"
+    9         
+   10         uint8   malloc_mempool[0x1000]; //32Б динамической памяти 
+   11         
+   12         sbit P9_0 = P9^0;
+   13         void main(void)
+   14         {
+   15  1      
+   16  1        WDTIN = 1;
+   17  1        WDTPRE = 1;
+   18  1      
+   19  1        CAN_Init();
+   20  1      
+   21  1      
+   22  1          init_mempool(&malloc_mempool, sizeof(malloc_mempool));
+   23  1          
+   24  1          SETTINGS_Init();    
+   25  1      
+   26  1          
+   27  1          Process_Initializetion();
+   28  1          Protocol_Initialization();
+   29  1          
+   30  1        P2 = 0x0000;
+   31  1        DP2 = 0x0000;
+   32  1        
+   33  1        P7 |= 0x0000;
+   34  1        DP7 |= 0x00F0;
+   35  1        
+   36  1        P9 |= 0x0010;//drv off
+   37  1        DP9 |= 0x0033;
+   38  1        
+   39  1      
+   40  1          
+   41  1        T01CON = 0x0106;
+   42  1        T0REL = 0x6769;
+   43  1        T1REL = 0x0000;
+   44  1        
+   45  1        T0IC = 0x006A;
+   46  1        T1IC = 0x0069;
+   47  1        
+   48  1        T78CON = 0x0101;
+   49  1        T7IC = 0x006B;
+   50  1        T8IC = 0x006C;
+   51  1        
+   52  1      
+   53  1        CC28IC = 0x007F;  //75
+   54  1        CC30IC = 0x007B;  //76
+   55  1        CC4IC = 0x0077;   //77
+C166 COMPILER V7.53.0.0, MAIN                                                              04/25/2017 12:22:24 PAGE 2   
+
+   56  1        
+   57  1        
+   58  1        T7R = 0;//PWM1
+   59  1        T8R = 0;//PWM2
+   60  1        T1R = 0;//PWM3
+   61  1        
+   62  1        T0R = 0;//MainProc 1 sec
+   63  1      
+   64  1        
+   65  1      
+   66  1        //P7.4 T7
+   67  1        /*
+   68  1          Параметр влияет на длительность импульса выключения HV п�
+             -�тания. 
+   69  1          
+   70  1          Увеличение параметра уевеличивает длительность импульс
+             -а
+   71  1          Уменьшение параметра уменьшает длительность импульса
+   72  1          
+   73  1            Цена деления - прибл. 0.8us
+   74  1        */
+   75  1        CC28 = 0xFB88;
+   76  1        CCM7 |= 0x0006;
+   77  1        //P7.6 T8
+   78  1        CC30 = 0xFB88;
+   79  1        CCM7 |= 0x0F00; 
+   80  1        
+   81  1        //P9.0 T1
+   82  1        CC4 = 0xFB88;
+   83  1        CCM1 |= 0x000F;
+   84  1        
+   85  1        
+   86  1        //настройка внешних входов прерываний
+   87  1        EXICON = 0x5555; // все входы по положительному фронту
+   88  1        EXISEL0 = 0;  //стандартный вход P2.X
+   89  1        EXISEL1 = 0;
+   90  1        
+   91  1        IEN = 1;
+   92  1        
+   93  1        //проверка на перезагрузку WDT
+   94  1        if(WDTR)Protocol_WDTRestartMsg(); 
+   95  1        
+   96  1        //проверка на перезапуск
+   97  1        if(SWR)Protocol_StartMsg();
+   98  1        
+   99  1          while(1)
+  100  1          {
+  101  2            _srvwdt_();
+  102  2          }
+  103  1      }
+  104         
+  105         
+
+
+MODULE INFORMATION:   INITIALIZED  UNINITIALIZED
+  CODE SIZE        =         176     --------
+  NEAR-CONST SIZE  =    --------     --------
+  FAR-CONST SIZE   =    --------     --------
+  HUGE-CONST SIZE  =    --------     --------
+  XHUGE-CONST SIZE =    --------     --------
+  NEAR-DATA SIZE   =        4096     --------
+  FAR-DATA SIZE    =    --------     --------
+C166 COMPILER V7.53.0.0, MAIN                                                              04/25/2017 12:22:24 PAGE 3   
+
+  XHUGE-DATA SIZE  =    --------     --------
+  IDATA-DATA SIZE  =    --------     --------
+  SDATA-DATA SIZE  =    --------     --------
+  BDATA-DATA SIZE  =    --------     --------
+  HUGE-DATA SIZE   =    --------     --------
+  BIT SIZE         =    --------     --------
+  INIT'L SIZE      =    --------     --------
+END OF MODULE INFORMATION.
+
+
+C166 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

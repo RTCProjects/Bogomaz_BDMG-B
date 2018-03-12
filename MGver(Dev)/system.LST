@@ -1,0 +1,79 @@
+C166 COMPILER V7.53.0.0, SYSTEM                                                            04/25/2017 12:38:44 PAGE 1   
+
+
+C166 COMPILER V7.53.0.0, COMPILATION OF MODULE SYSTEM
+OBJECT MODULE PLACED IN system.OBJ
+COMPILER INVOKED BY: C:\Keil\C166\BIN\C166.EXE system.c BROWSE MOD167 DEBUG TABS(2) 
+
+ stmt lvl     source
+
+    1         #include "system.h"
+    2         
+    3         uint8 System_RAMTest(void)
+    4         {
+    5  1          __IO uint32 cnt = 0;
+    6  1          __IO uint32 temp = 0;
+    7  1          uint32  index = 0;
+    8  1          uint16    *ramStart = 0x600000;
+*** WARNING C12 IN LINE 8 OF system.c: '=': 'long' converted to pointer
+    9  1      
+   10  1          uint16  ramData = 0;
+   11  1          uint16  loopData = 0;
+   12  1        
+   13  1          xmemset(ramStart,0,0x80000);
+   14  1        
+   15  1          for(index = 0;index<0x40000;index++)
+   16  1          {
+   17  2            (*(ramStart+index)) = (uint16)index;
+   18  2          }
+   19  1      
+   20  1      
+   21  1        
+   22  1          for(index = 0;index<0x40000;index++)
+   23  1          {
+   24  2            ramData = (*((uint16*)ramStart+index));
+   25  2          
+   26  2            
+   27  2            if(ramData != (uint16)index)
+   28  2            {
+   29  3              return 0;
+   30  3            }
+   31  2          }
+   32  1          xmemset(ramStart,0,0x80000);
+   33  1          
+   34  1          return 1;
+   35  1      }
+   36         
+   37         void  System_Delay(unsigned long z){
+   38  1        unsigned long x;
+   39  1        for (x = 0; x < z; x++){
+   40  2          
+   41  2        }
+   42  1      }
+   43         void  System_Reset()
+   44         {
+   45  1        __asm {SRST}
+   46  1      }
+
+
+MODULE INFORMATION:   INITIALIZED  UNINITIALIZED
+  CODE SIZE        =         182     --------
+  NEAR-CONST SIZE  =    --------     --------
+  FAR-CONST SIZE   =    --------     --------
+  HUGE-CONST SIZE  =    --------     --------
+  XHUGE-CONST SIZE =    --------     --------
+C166 COMPILER V7.53.0.0, SYSTEM                                                            04/25/2017 12:38:44 PAGE 2   
+
+  NEAR-DATA SIZE   =    --------     --------
+  FAR-DATA SIZE    =    --------     --------
+  XHUGE-DATA SIZE  =    --------     --------
+  IDATA-DATA SIZE  =    --------     --------
+  SDATA-DATA SIZE  =    --------     --------
+  BDATA-DATA SIZE  =    --------     --------
+  HUGE-DATA SIZE   =    --------     --------
+  BIT SIZE         =    --------     --------
+  INIT'L SIZE      =    --------     --------
+END OF MODULE INFORMATION.
+
+
+C166 COMPILATION COMPLETE.  1 WARNING(S),  0 ERROR(S)

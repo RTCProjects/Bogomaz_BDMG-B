@@ -1,0 +1,382 @@
+C166 COMPILER V7.53.0.0, PROTOCOL                                                          04/25/2017 12:38:42 PAGE 1   
+
+
+C166 COMPILER V7.53.0.0, COMPILATION OF MODULE PROTOCOL
+OBJECT MODULE PLACED IN protocol.OBJ
+COMPILER INVOKED BY: C:\Keil\C166\BIN\C166.EXE protocol.c BROWSE MOD167 DEBUG TABS(2) 
+
+ stmt lvl     source
+
+    1         #include "protocol.h"
+    2         #include "can.h"
+    3         #include "settings.h"
+    4         #include "process.h"
+    5         #include "system.h"
+    6         
+    7         uint16  timeSpan;     //время измерения (в десятых долях сек)
+    8         uint8   rangeValue;   //номер текущего диапазона (0 - авто)
+    9         uint8   autoMode;     //автоматический режим
+   10           
+   11         const uint8 mResetResponse[] = {0x01,0x01,0x00,0x00,0x00,0x00,0x00,0x00};
+   12         const uint8 mWDTRestartResponse[] = {0xEE};
+   13         
+   14         static uint8  dataMsgCounter = 0;
+   15         
+   16         
+   17         
+   18         void Protocol_Initialization()
+   19         {
+   20  1        rangeValue = 0;
+   21  1        timeSpan = 10;
+   22  1        
+   23  1        autoMode = 0;
+   24  1      }
+   25         
+   26         void Protocol_SetRangeValue(uint8 Value)
+   27         {
+   28  1        rangeValue = Value;
+   29  1      }
+   30         
+   31         uint8 Protocol_GetRangeValue()
+   32         {
+   33  1        return rangeValue;
+   34  1      }
+   35         uint8 Protocol_GetAutoModeState()
+   36         {
+   37  1        return autoMode;
+   38  1      }
+   39         
+   40         void Protocol_TransmitMsgCallback(uint16  canID)
+   41         {
+   42  1        /*if(canID == TX_DATA)
+   43  1        {
+   44  1          dataMsgCounter++;
+   45  1          
+   46  1            if(dataMsgCounter == 1)
+   47  1              Protocol_CounterMsg();
+   48  1            else if(dataMsgCounter == 2)
+   49  1              Protocol_DoseRateMsg();
+   50  1            else 
+   51  1              dataMsgCounter = 0;
+   52  1        }*/
+   53  1      }
+*** WARNING C47 IN LINE 40 OF protocol.c: 'canID': unreferenced parameter
+   54         //отправка сообщения с параметром
+C166 COMPILER V7.53.0.0, PROTOCOL                                                          04/25/2017 12:38:42 PAGE 2   
+
+   55         void Protocol_SendDataMsg(uint8*  pData,uint8 *pValue,uint8 dataSize)
+   56         {
+   57  1        uint8 pIndex = pData[1];
+   58  1        
+   59  1          memcpy(pData + 4,(uint32*)(pValue),dataSize);
+   60  1        
+   61  1        pData[1] = 0;
+   62  1        pData[2] = pIndex;
+   63  1        
+   64  1        CAN_SendMessage(TX_CMD,pData,8);
+   65  1      }
+   66         //получение параметра от ПО
+   67         void Protocol_GetDataMsg(uint8* pValue, uint8 *pData,uint8  dataSize,eSaveSate saveState)
+   68         {
+   69  1        memcpy(pValue,pData + 4,dataSize);
+   70  1          if(saveState == E_SAVE_STATE)SETTINGS_Save();
+   71  1        
+   72  1        Protocol_SendDataMsg(pData,(uint8*)pValue,dataSize);
+   73  1      }
+   74         //отправка синхронизационного сообщения
+   75         void Protocol_ResponseDataPackaje(eResponseState responseState)
+   76         {
+   77  1        uint8 pData[2];
+   78  1              pData[0] = 0x40;
+   79  1              pData[1] = (uint8)responseState;
+   80  1        
+   81  1          CAN_SendMessage(TX_DATA,pData,sizeof(pData));
+   82  1      }
+   83         //подтверждение остановки приема данных
+   84         void Protocol_ConfirmStopData()
+   85         {
+   86  1        uint8 pData[2];
+   87  1          pData[0] = 0x41;
+   88  1          pData[1] = 0;
+   89  1        
+   90  1        CAN_SendMessage(TX_DATA,pData,sizeof(pData));
+   91  1      }
+   92         
+   93         //Заголовочное сообщение данных
+   94         void Protocol_HeaderDataMsg(uint8 *pData,uint16 counterRate)
+   95         { 
+   96  1        //uint8 pData[8];
+   97  1        
+   98  1        dataMsgCounter = 0;
+   99  1        memset(pData,0,sizeof(uint8) * 8);
+  100  1        
+  101  1          pData[0] = MainSettings.modeValue;
+  102  1          pData[1] = rangeValue;
+  103  1          pData[2] = (uint8)timeSpan & 0x00FF;
+  104  1          pData[3] = (uint8)(timeSpan >> 8);
+  105  1          pData[4] = 2; //кол-во байт на счётчик
+  106  1        //высчитываем кол-во счётчиков
+  107  1          if(rangeValue == 1)
+  108  1            pData[5] = 4;
+  109  1          else
+  110  1            pData[5] = 2;
+  111  1          
+  112  1          pData[6] = (uint8)counterRate & 0x00FF;
+  113  1          pData[7] = (uint8)(counterRate >> 8);
+  114  1          
+  115  1          
+  116  1        //CAN_SendMessage(TX_DATA,pData,sizeof(pData));
+C166 COMPILER V7.53.0.0, PROTOCOL                                                          04/25/2017 12:38:42 PAGE 3   
+
+  117  1      }
+  118         void Protocol_CounterMsg(uint8  *pCanData,uint16  *pData)
+  119         {
+  120  1        //uint16 *pCanData[8];// = (uint16*)pData;
+  121  1          memset(pCanData,0,sizeof(uint16) * 8);
+  122  1      
+  123  1        if( rangeValue == 1){
+  124  2          memcpy(pCanData,pData,sizeof(uint16) * 4);
+  125  2        }   
+  126  1        else if(rangeValue == 2){
+  127  2          memcpy(pCanData,pData + 4,sizeof(uint16) * 2);
+  128  2        }
+  129  1        else{
+  130  2          memcpy(pCanData,pData + 6,sizeof(uint16) * 2);
+  131  2        }
+  132  1        //CAN_SendMessage(TX_DATA,(uint8*)pCanData,8);
+  133  1        
+  134  1      }
+  135         void Protocol_DoseRateMsg(uint8 *pData,float doseValue)
+  136         {
+  137  1        //uint8 pData[8];
+  138  1          
+  139  1          memcpy(pData,&doseValue,sizeof(float));
+  140  1          memset(pData + 4,(uint8)0xFF,sizeof(float));
+  141  1        
+  142  1        //CAN_SendMessage(TX_DATA,pData,sizeof(pData));
+  143  1      }
+  144         void Protocol_StartMsg()
+  145         {
+  146  1        CAN_SendMessage(TX_CMD,mResetResponse,8);
+  147  1      }
+  148         void Protocol_WDTRestartMsg()
+  149         {
+  150  1        CAN_SendMessage(TX_CMD,mWDTRestartResponse,1);
+  151  1      }
+  152         
+  153         void Protocol_ReceiveMsgCallback(uint8  devID, uint8 *pData)
+  154         {
+  155  1        __IO uint8  x = 0;
+  156  1        if(devID == 0)  //пришло сообщение для всех БД
+  157  1        {
+  158  2          if(pData[0] == 0x01)
+  159  2          { 
+  160  3            
+  161  3            System_Reset();
+  162  3          }
+  163  2        }
+  164  1        else if(devID == DEVICE_NUMBER) //получили месседж для конкретного блок�
+             -�
+  165  1        {
+  166  2          switch(pData[0])//проверяем индекс команды
+  167  2          {
+  168  3            case 0x04:  //выдать параметр
+  169  3            {
+  170  4              switch(pData[1])
+  171  4              {
+  172  5                case TIMESPAN:
+  173  5                {
+  174  6                  Protocol_SendDataMsg(pData,(uint8*)&timeSpan,sizeof(timeSpan)); break; 
+  175  6                }
+  176  5                break;
+  177  5                
+C166 COMPILER V7.53.0.0, PROTOCOL                                                          04/25/2017 12:38:42 PAGE 4   
+
+  178  5                case PERIOD_PULSE_POWER:    Protocol_SendDataMsg(pData,(uint8*)&MainSettings.pulsePwrPeriod,sizeof(Mai
+             -nSettings.pulsePwrPeriod)); break; 
+  179  5                case PULSE_DURATION_POWER:  Protocol_SendDataMsg(pData,(uint8*)&MainSettings.pulseDuration,sizeof(Mai
+             -nSettings.pulseDuration)); break;
+  180  5                case WORKING_MODE:  Protocol_SendDataMsg(pData,(uint8*)&MainSettings.modeValue,sizeof(MainSettings.mod
+             -eValue)); break;
+  181  5                case CURRENT_RANGE: Protocol_SendDataMsg(pData,(uint8*)&rangeValue,sizeof(rangeValue)); break;
+  182  5                
+  183  5                case DEADTIME_1:  Protocol_SendDataMsg(pData,(uint8*)&MainSettings.mDeadTime[0],sizeof(MainSettings.mD
+             -eadTime[0]));  break;        
+  184  5                case DEADTIME_2:  Protocol_SendDataMsg(pData,(uint8*)&MainSettings.mDeadTime[1],sizeof(MainSettings.mD
+             -eadTime[1]));  break;
+  185  5                case DEADTIME_3:  Protocol_SendDataMsg(pData,(uint8*)&MainSettings.mDeadTime[2],sizeof(MainSettings.mD
+             -eadTime[2]));  break;      
+  186  5                //DEBUG SECTION
+  187  5                case RANGE_1_TO_2:  Protocol_SendDataMsg(pData,(uint8*)&MainSettings.range1to2Value,sizeof(MainSetting
+             -s.range1to2Value)); break;
+  188  5                case RANGE_2_TO_3:  Protocol_SendDataMsg(pData,(uint8*)&MainSettings.range2to3Value,sizeof(MainSetting
+             -s.range2to3Value)); break;
+  189  5                case RANGE_3_MAX:   Protocol_SendDataMsg(pData,(uint8*)&MainSettings.range3maxValue,sizeof(MainSetting
+             -s.range3maxValue)); break;
+  190  5                case RANGE_3_TO_2:  Protocol_SendDataMsg(pData,(uint8*)&MainSettings.range3to2Value,sizeof(MainSetting
+             -s.range3to2Value)); break;
+  191  5                case RANGE_2_TO_1:  Protocol_SendDataMsg(pData,(uint8*)&MainSettings.range2to1Value,sizeof(MainSetting
+             -s.range2to1Value)); break;
+  192  5                
+  193  5                case SENS_RANGE_1:  Protocol_SendDataMsg(pData,(uint8*)&MainSettings.fSensCounters[0],sizeof(MainSetti
+             -ngs.fSensCounters[0])); break;        
+  194  5                case SENS_RANGE_2:  Protocol_SendDataMsg(pData,(uint8*)&MainSettings.fSensCounters[1],sizeof(MainSetti
+             -ngs.fSensCounters[1])); break;
+  195  5                case SENS_RANGE_3:  Protocol_SendDataMsg(pData,(uint8*)&MainSettings.fSensCounters[2],sizeof(MainSetti
+             -ngs.fSensCounters[2])); break;  
+  196  5                //END DEBUG SECTION
+  197  5                
+  198  5                //Correction factors
+  199  5                case CORR_FACTOR_1_1:   Protocol_SendDataMsg(pData,(uint8*)&MainSettings.correctionFactors[0],sizeof(f
+             -loat));  break;
+  200  5                case CORR_FACTOR_1_2:   Protocol_SendDataMsg(pData,(uint8*)&MainSettings.correctionFactors[1],sizeof(f
+             -loat));  break;
+  201  5                case CORR_FACTOR_1_3:   Protocol_SendDataMsg(pData,(uint8*)&MainSettings.correctionFactors[2],sizeof(f
+             -loat));  break;
+  202  5                case CORR_FACTOR_1_4:   Protocol_SendDataMsg(pData,(uint8*)&MainSettings.correctionFactors[3],sizeof(f
+             -loat));  break;
+  203  5                case CORR_FACTOR_2_1:   Protocol_SendDataMsg(pData,(uint8*)&MainSettings.correctionFactors[4],sizeof(f
+             -loat));  break;
+  204  5                case CORR_FACTOR_2_2:   Protocol_SendDataMsg(pData,(uint8*)&MainSettings.correctionFactors[5],sizeof(f
+             -loat));  break;
+  205  5                case CORR_FACTOR_3_1:   Protocol_SendDataMsg(pData,(uint8*)&MainSettings.correctionFactors[6],sizeof(f
+             -loat));  break;
+  206  5                case CORR_FACTOR_3_2:   Protocol_SendDataMsg(pData,(uint8*)&MainSettings.correctionFactors[7],sizeof(f
+             -loat));  break;
+  207  5                //end correction factors
+  208  5                default: 
+  209  5                {
+  210  6                  pData[0] = 0xEE;
+  211  6                  pData[2] = pData[1];
+  212  6                  pData[1] = 0x04;
+  213  6                  CAN_SendMessage(TX_ERROR,pData,3);
+  214  6                }break;
+  215  5                
+  216  5              }
+  217  4            }break;
+C166 COMPILER V7.53.0.0, PROTOCOL                                                          04/25/2017 12:38:42 PAGE 5   
+
+  218  3            
+  219  3            case 0x05:  //задать параметр
+  220  3            {
+  221  4              switch(pData[1])
+  222  4              {
+  223  5                case TIMESPAN:  Protocol_GetDataMsg((uint8*)&timeSpan,pData,sizeof(timeSpan),E_NO_SAVE_STATE);  break;
+  224  5                
+  225  5                case PERIOD_PULSE_POWER:    Protocol_GetDataMsg((uint8*)&MainSettings.pulsePwrPeriod,pData,sizeof(MainS
+             -ettings.pulsePwrPeriod),E_SAVE_STATE);  break;
+  226  5                case PULSE_DURATION_POWER:  Protocol_GetDataMsg((uint8*)&MainSettings.pulseDuration,pData,sizeof(MainS
+             -ettings.pulseDuration),E_SAVE_STATE); break;
+  227  5                case WORKING_MODE:          Protocol_GetDataMsg((uint8*)&MainSettings.modeValue,pData,sizeof(MainSettings.
+             -modeValue),E_SAVE_STATE); break;
+  228  5                case CURRENT_RANGE:         
+  229  5                {
+  230  6                  Protocol_GetDataMsg((uint8*)&rangeValue,pData,sizeof(rangeValue),E_NO_SAVE_STATE);
+  231  6                  if(rangeValue == 0)
+  232  6                    autoMode = 1;
+  233  6                  else
+  234  6                    autoMode = 0;
+  235  6                }break;
+  236  5                
+  237  5                case RANGE_1_TO_2:  Protocol_GetDataMsg((uint8*)&MainSettings.range1to2Value,pData,sizeof(uint16),E_SA
+             -VE_STATE);  break;
+  238  5                case RANGE_2_TO_3:  Protocol_GetDataMsg((uint8*)&MainSettings.range2to3Value,pData,sizeof(uint16),E_SA
+             -VE_STATE);  break;
+  239  5                case RANGE_3_MAX:   Protocol_GetDataMsg((uint8*)&MainSettings.range3maxValue,pData,sizeof(uint16),E_SA
+             -VE_STATE);  break;
+  240  5                case RANGE_3_TO_2:  Protocol_GetDataMsg((uint8*)&MainSettings.range3to2Value,pData,sizeof(uint16),E_SA
+             -VE_STATE);  break;
+  241  5                case RANGE_2_TO_1:  Protocol_GetDataMsg((uint8*)&MainSettings.range2to1Value,pData,sizeof(uint16),E_SA
+             -VE_STATE);  break;
+  242  5                
+  243  5                case SENS_RANGE_1:  Protocol_GetDataMsg((uint8*)&MainSettings.fSensCounters[0],pData,sizeof(float),E_S
+             -AVE_STATE);  break;
+  244  5                case SENS_RANGE_2:  Protocol_GetDataMsg((uint8*)&MainSettings.fSensCounters[1],pData,sizeof(float),E_S
+             -AVE_STATE);  break;
+  245  5                case SENS_RANGE_3:  Protocol_GetDataMsg((uint8*)&MainSettings.fSensCounters[2],pData,sizeof(float),E_S
+             -AVE_STATE);  break;
+  246  5                
+  247  5                case CORR_FACTOR_1_1: Protocol_GetDataMsg((uint8*)&MainSettings.correctionFactors[0],pData,sizeof(flo
+             -at),E_SAVE_STATE);  break;
+  248  5                case CORR_FACTOR_1_2: Protocol_GetDataMsg((uint8*)&MainSettings.correctionFactors[1],pData,sizeof(flo
+             -at),E_SAVE_STATE);  break;
+  249  5                case CORR_FACTOR_1_3: Protocol_GetDataMsg((uint8*)&MainSettings.correctionFactors[2],pData,sizeof(flo
+             -at),E_SAVE_STATE);  break;
+  250  5                case CORR_FACTOR_1_4: Protocol_GetDataMsg((uint8*)&MainSettings.correctionFactors[3],pData,sizeof(flo
+             -at),E_SAVE_STATE);  break;
+  251  5                case CORR_FACTOR_2_1: Protocol_GetDataMsg((uint8*)&MainSettings.correctionFactors[4],pData,sizeof(flo
+             -at),E_SAVE_STATE);  break;
+  252  5                case CORR_FACTOR_2_2: Protocol_GetDataMsg((uint8*)&MainSettings.correctionFactors[5],pData,sizeof(flo
+             -at),E_SAVE_STATE);  break;
+  253  5                case CORR_FACTOR_3_1: Protocol_GetDataMsg((uint8*)&MainSettings.correctionFactors[6],pData,sizeof(flo
+             -at),E_SAVE_STATE);  break;
+  254  5                case CORR_FACTOR_3_2: Protocol_GetDataMsg((uint8*)&MainSettings.correctionFactors[7],pData,sizeof(flo
+             -at),E_SAVE_STATE);  break;
+  255  5                
+  256  5                case DEADTIME_1:  Protocol_GetDataMsg((uint8*)&MainSettings.mDeadTime[0],pData,sizeof(float),E_SAVE_ST
+             -ATE);  break;
+  257  5                case DEADTIME_2:  Protocol_GetDataMsg((uint8*)&MainSettings.mDeadTime[1],pData,sizeof(float),E_SAVE_ST
+             -ATE);  break;
+  258  5                case DEADTIME_3:  Protocol_GetDataMsg((uint8*)&MainSettings.mDeadTime[2],pData,sizeof(float),E_SAVE_ST
+C166 COMPILER V7.53.0.0, PROTOCOL                                                          04/25/2017 12:38:42 PAGE 6   
+
+             -ATE);  break;
+  259  5                
+  260  5                default: 
+  261  5                {
+  262  6                  pData[0] = 0xEE;
+  263  6                  pData[2] = pData[1];
+  264  6                  pData[1] = 0x05;
+  265  6                    CAN_SendMessage(TX_ERROR,pData,3);
+  266  6                }break; 
+  267  5              }
+  268  4              
+  269  4              
+  270  4            }break;
+  271  3            
+  272  3            case 0x40:  //старт измерений
+  273  3            {
+  274  4              Protocol_ResponseDataPackaje(E_ACCEPT_RESPONSE);
+  275  4              Process_Start();
+  276  4              
+  277  4              
+  278  4            }break;
+  279  3            
+  280  3            case 0x41:  //стоп измерений
+  281  3            {
+  282  4              
+  283  4              Protocol_ConfirmStopData();
+  284  4              Process_Stop();
+  285  4              //Protocol_ResponseDataPackaje(E_COMPLETED_RESPONSE);
+  286  4              
+  287  4              
+  288  4            }break;
+  289  3          }
+  290  2        }
+  291  1        else
+  292  1        {
+  293  2          
+  294  2        }
+  295  1      
+  296  1      }
+
+
+MODULE INFORMATION:   INITIALIZED  UNINITIALIZED
+  CODE SIZE        =        1722     --------
+  NEAR-CONST SIZE  =           9     --------
+  FAR-CONST SIZE   =    --------     --------
+  HUGE-CONST SIZE  =    --------     --------
+  XHUGE-CONST SIZE =    --------     --------
+  NEAR-DATA SIZE   =           5     --------
+  FAR-DATA SIZE    =    --------     --------
+  XHUGE-DATA SIZE  =    --------     --------
+  IDATA-DATA SIZE  =    --------     --------
+  SDATA-DATA SIZE  =    --------     --------
+  BDATA-DATA SIZE  =    --------     --------
+  HUGE-DATA SIZE   =    --------     --------
+  BIT SIZE         =    --------     --------
+  INIT'L SIZE      =           6     --------
+END OF MODULE INFORMATION.
+
+
+C166 COMPILATION COMPLETE.  1 WARNING(S),  0 ERROR(S)

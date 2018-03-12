@@ -1,0 +1,154 @@
+C166 COMPILER V7.53.0.0, MAIN                                                              03/16/2017 11:03:17 PAGE 1   
+
+
+C166 COMPILER V7.53.0.0, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN main.OBJ
+COMPILER INVOKED BY: C:\Keil\C166\BIN\C166.EXE main.c BROWSE MOD167 DEBUG TABS(2) 
+
+ stmt lvl     source
+
+    1         #include "main.h"
+    2         #include "can.h"
+    3         #include "flash.h"
+    4         #include "settings.h"
+    5         #include "protocol.h"
+    6         #include "process.h"
+    7         #include "system.h"
+    8         #include "math.h"
+    9         
+   10         uint8   malloc_mempool[0x1000]; //32Б динамической памяти 
+   11         
+   12         sbit P9_0 = P9^0;
+   13         
+   14         const uint32 SerialNumberBD = 1301003;
+   15         
+   16         void main(void)
+   17         {
+   18  1        unsigned int far *pReprogWord = (unsigned int far *) 0x50000;
+   19  1      
+   20  1        WDTIN = 1;
+   21  1        WDTPRE = 1;
+   22  1      
+   23  1        CAN_Init();
+   24  1        
+   25  1        if(SWR == 1)
+   26  1        {
+   27  2          if(*pReprogWord == 0x1234)
+   28  2          {
+   29  3            *pReprogWord = 0;
+   30  3            
+   31  3            __asm {CALLS 04H 0E000H}
+   32  3          } 
+   33  2        }
+   34  1      
+   35  1          init_mempool(&malloc_mempool, sizeof(malloc_mempool));
+   36  1          
+   37  1          SETTINGS_Init();    
+   38  1      
+   39  1          
+   40  1          Process_Initializetion();
+   41  1          Protocol_Initialization();
+   42  1          
+   43  1        P2 = 0x0000;
+   44  1        DP2 = 0x0000;
+   45  1        
+   46  1        P7 |= 0x0000;
+   47  1        DP7 |= 0x00F0;
+   48  1        
+   49  1        P9 |= 0x0010;//drv off
+   50  1        DP9 |= 0x0033;
+   51  1        
+   52  1      
+   53  1          
+   54  1        T01CON = 0x0106;
+   55  1        T0REL = 0x6769;
+C166 COMPILER V7.53.0.0, MAIN                                                              03/16/2017 11:03:17 PAGE 2   
+
+   56  1        T1REL = 0x0000;
+   57  1        
+   58  1        T0IC = 0x006A;
+   59  1        T1IC = 0x0069;
+   60  1        
+   61  1        T78CON = 0x0101;
+   62  1        T7IC = 0x006B;
+   63  1        T8IC = 0x006C;
+   64  1        
+   65  1      
+   66  1        CC28IC = 0x007F;  //75
+   67  1        CC30IC = 0x007B;  //76
+   68  1        CC4IC = 0x0077;   //77
+   69  1        
+   70  1        
+   71  1        T7R = 0;//PWM1
+   72  1        T8R = 0;//PWM2
+   73  1        T1R = 0;//PWM3
+   74  1        
+   75  1        T0R = 0;//MainProc 1 sec
+   76  1      
+   77  1        
+   78  1      
+   79  1        //P7.4 T7
+   80  1        /*
+   81  1          Параметр влияет на длительность импульса выключения HV п�
+             -�тания. 
+   82  1          
+   83  1          Увеличение параметра уевеличивает длительность импульс
+             -а
+   84  1          Уменьшение параметра уменьшает длительность импульса
+   85  1          
+   86  1            Цена деления - прибл. 0.8us
+   87  1        */
+   88  1        CC28 = 0xFB88;
+   89  1        CCM7 |= 0x0006;
+   90  1        //P7.6 T8
+   91  1        CC30 = 0xFB88;
+   92  1        CCM7 |= 0x0F00; 
+   93  1        
+   94  1        //P9.0 T1
+   95  1        CC4 = 0xFB88;
+   96  1        CCM1 |= 0x000F;
+   97  1        
+   98  1        
+   99  1        //настройка внешних входов прерываний
+  100  1        EXICON = 0x5555; // все входы по положительному фронту
+  101  1        EXISEL0 = 0;  //стандартный вход P2.X
+  102  1        EXISEL1 = 0;
+  103  1        
+  104  1        IEN = 1;
+  105  1        
+  106  1        //проверка на перезагрузку WDT
+  107  1        if(WDTR)Protocol_WDTRestartMsg(); 
+  108  1        
+  109  1        //проверка на перезапуск
+  110  1        if(SWR)Protocol_StartMsg();
+  111  1        
+  112  1          while(1)
+  113  1          {
+  114  2            _srvwdt_();
+  115  2          }
+C166 COMPILER V7.53.0.0, MAIN                                                              03/16/2017 11:03:17 PAGE 3   
+
+  116  1      }
+  117         
+  118         
+
+
+MODULE INFORMATION:   INITIALIZED  UNINITIALIZED
+  CODE SIZE        =         210     --------
+  NEAR-CONST SIZE  =           4     --------
+  FAR-CONST SIZE   =    --------     --------
+  HUGE-CONST SIZE  =    --------     --------
+  XHUGE-CONST SIZE =    --------     --------
+  NEAR-DATA SIZE   =        4096     --------
+  FAR-DATA SIZE    =    --------     --------
+  XHUGE-DATA SIZE  =    --------     --------
+  IDATA-DATA SIZE  =    --------     --------
+  SDATA-DATA SIZE  =    --------     --------
+  BDATA-DATA SIZE  =    --------     --------
+  HUGE-DATA SIZE   =    --------     --------
+  BIT SIZE         =    --------     --------
+  INIT'L SIZE      =    --------     --------
+END OF MODULE INFORMATION.
+
+
+C166 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
